@@ -3,9 +3,8 @@
  * Caches core app shell assets for offline availability (SDG 8 PWA)
  */
 
-const CACHE_NAME = 'fairshift-v1';
+const CACHE_NAME = 'fairshift-v2';
 const ASSETS_TO_CACHE = [
-  './',
   './index.html',
   './styles.css',
   './app.js',
