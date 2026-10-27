@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="description" content="FairShift — Decent Work Platform for Employee-Intensive Organisations. SDG 8." />
+  <title>FairShift | SDG 8 — Decent Work Platform</title>
+
+  <link rel="manifest" href="manifest.json" />
+
+  <!-- Tailwind CSS via CDN (required) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Lucide Icons via CDN -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <!-- Google Fonts: Noto Sans for EN/HI/TA multi-script support -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind custom config — enterprise palette -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Noto Sans', 'Noto Sans Devanagari', 'Noto Sans Tamil', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            // Keep brand colours for any JS references; primary UX is now indigo/slate
+            brand: { 50:'#eff6ff', 100:'#dbeafe', 500:'#3b82f6', 600:'#2563eb', 700:'#1d4ed8', 800:'#1e40af', 900:'#1e3a8a' },
+            sdg8: '#e8541a',   // muted SDG8 orange (less neon)
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4,0,0.6,1) infinite',
+            'slide-in':   'slideIn 0.2s ease-out',
+            'fade-in':    'fadeIn 0.25s ease-out',
+          },
+          keyframes: {
+            slideIn: { '0%': { transform:'translateY(-6px)', opacity:'0' }, '100%': { transform:'translateY(0)', opacity:'1' } },
+            fadeIn:  { '0%': { opacity:'0' }, '100%': { opacity:'1' } },
+          },
+        },
+      },
+    };
+  </script>
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-slate-50 font-sans text-slate-900 min-h-screen flex flex-col antialiased">
+
+  <!-- ============================================================
+       TOP UTILITY BAR — sticky, enterprise dark nav
+  ============================================================ -->
+  <header id="top-utility-bar"
+    class="sticky top-0 z-50 bg-slate-900 border-b border-slate-700/60"
+    role="banner"
+    aria-label="FairShift top utility bar">
+
+    <!-- Offline Status Banner (hidden by default) -->
+    <div id="offline-banner"
+      class="hidden w-full bg-red-600 text-white text-center text-xs font-semibold py-1.5 px-4"
+      role="alert" aria-live="assertive" aria-label="Offline mode active">
+      <span data-i18n="offline_banner">⚠️ OFFLINE MODE — Actions queued and will sync on reconnect</span>
+    </div>
+
+    <div class="flex items-center justify-between px-4 py-2.5 gap-3 flex-wrap">
+
+      <!-- LEFT: Logo + Impact Guide -->
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="flex items-baseline gap-1 leading-none">
+          <span class="font-extrabold text-base tracking-tight text-white">Fair<span class="text-indigo-400">Shift</span></span>
+          <span class="text-[10px] text-slate-400 font-semibold tracking-widest ml-1">SDG 8</span>
+        </div>
+        <div class="hidden sm:block w-px h-4 bg-slate-600"></div>
+        <button id="btn-impact-guide"
+          class="hidden sm:flex items-center gap-1.5 text-slate-300 hover:text-white text-xs font-medium transition-colors"
+          aria-label="Open Industry Impact Guide" aria-haspopup="dialog">
+          <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+          <span data-i18n="impact_guide">Impact Guide</span>
+        </button>
+      </div>
+
+      <!-- CENTER: Active session badges -->
+      <div id="active-badges" class="flex items-center gap-1.5 flex-wrap justify-center">
+        <span id="badge-industry"
+          class="hidden items-center gap-1 bg-slate-700 border border-slate-600 text-slate-200 text-[11px] font-semibold px-2 py-0.5 rounded"
+          aria-label="Active industry">
+          <i data-lucide="building-2" class="w-3 h-3 text-slate-400"></i>
+          <span id="badge-industry-text">—</span>
+        </span>
+        <span id="badge-role"
+          class="hidden items-center gap-1 bg-indigo-600/20 border border-indigo-500/40 text-indigo-300 text-[11px] font-semibold px-2 py-0.5 rounded"
+          aria-label="Active role">
+          <i data-lucide="user-check" class="w-3 h-3"></i>
+          <span id="badge-role-text">—</span>
+        </span>
+      </div>
+
+      <!-- RIGHT: Controls cluster -->
+      <div class="flex items-center gap-2 flex-wrap justify-end">
+
+        <!-- Language Switcher -->
+        <div class="relative">
+          <label for="lang-switcher" class="sr-only">Select Language</label>
+          <select id="lang-switcher"
+            class="appearance-none bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium pl-2.5 pr-6 py-1.5 rounded border border-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer transition-colors"
+            aria-label="Language switcher">
+            <option value="en">English</option>
+            <option value="hi">हिन्दी</option>
+            <option value="ta">தமிழ்</option>
+          </select>
+          <i data-lucide="chevron-down" class="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"></i>
+        </div>
+
+        <!-- Offline Simulate Toggle -->
+        <div class="flex items-center gap-1.5" title="Simulate offline mode for demo judges">
+          <span class="text-xs text-slate-400 font-medium hidden sm:inline" data-i18n="offline_toggle">Offline</span>
+          <button id="offline-toggle"
+            role="switch" aria-checked="false" aria-label="Simulate offline mode"
+            class="relative inline-flex h-5 w-9 items-center rounded-full bg-slate-600 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900">
+            <span id="offline-toggle-knob"
+              class="inline-block h-3.5 w-3.5 transform translate-x-0.5 rounded-full bg-white shadow transition-transform duration-200"></span>
+          </button>
+        </div>
+
+        <!-- Switch Role / Logout — HIDDEN on login screen, shown after entry -->
+        <button id="btn-switch-role"
+          class="hidden items-center gap-1.5 text-slate-300 hover:text-white text-xs font-medium px-2.5 py-1.5 rounded border border-slate-600 hover:border-slate-400 bg-slate-800 hover:bg-slate-700 transition-all"
+          aria-label="Switch role or logout">
+          <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+          <span data-i18n="switch_role">Switch / Logout</span>
+        </button>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       MAIN APPLICATION AREA
+  ============================================================ -->
+  <main id="app-main" class="flex-1 flex flex-col">
+
+    <!-- ══════════════════════════════════════════════
+         VIEW: LOGIN / ONBOARDING  (#login-view)
+         Enterprise: clean white on slate-50 bg
+    ══════════════════════════════════════════════ -->
+    <section id="login-view"
+      class="flex flex-col items-center justify-start px-4 py-10 min-h-screen bg-slate-50"
+      aria-label="Login and onboarding screen" role="main">
+
+      <!-- Hero header -->
+      <div class="text-center mb-10 animate-slide-in">
+        <div class="inline-flex items-center justify-center w-14 h-14 bg-slate-900 rounded-xl shadow-md mb-4">
+          <span class="text-2xl">⚖️</span>
+        </div>
+        <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">
+          Fair<span class="text-indigo-600">Shift</span>
+        </h1>
+        <p class="text-slate-500 text-sm mt-1 font-medium" data-i18n="tagline">
+          Decent Work · Fair Wages · Safe Workplaces
+        </p>
+        <div class="mt-3 inline-flex items-center gap-2 bg-white border border-slate-200 rounded px-3 py-1 shadow-sm">
+          <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+          <span class="text-slate-600 text-xs font-semibold">UN SDG 8 — Decent Work &amp; Economic Growth</span>
+        </div>
+      </div>
+
+      <!-- ── Step 1: Select Industry ── -->
+      <div class="w-full max-w-2xl mb-8">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-indigo-600 text-white text-[11px] font-bold shrink-0">1</span>
+          <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wider" data-i18n="select_industry">Select Your Industry</h2>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup" aria-label="Select industry">
+
+          <!-- Construction Card — always dark text -->
+          <button id="card-construction"
+            class="industry-card group relative flex flex-col items-start p-5 bg-white border-2 border-slate-200 rounded-xl text-left hover:border-indigo-400 hover:bg-indigo-50/40 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-150 cursor-pointer shadow-sm"
+            role="radio" aria-checked="false"
+            aria-label="Select Construction Site — Metro Infra Corp"
+            data-industry="construction">
+            <div class="flex items-center gap-3 mb-3 w-full">
+              <div class="text-3xl">🏗️</div>
+              <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-slate-900 text-sm" data-i18n="construction_title">Construction Site</h3>
+                <p class="text-slate-500 text-xs mt-0.5 font-medium">Metro Infra Corp</p>
+              </div>
+              <!-- Selected checkmark -->
+              <div class="selected-check hidden w-5 h-5 bg-indigo-600 rounded-full items-center justify-center shrink-0">
+                <i data-lucide="check" class="w-3 h-3 text-white"></i>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <span class="industry-tag">Scaffolding</span>
+              <span class="industry-tag">Electrician</span>
+              <span class="industry-tag">Crane Ops</span>
+            </div>
+          </button>
+
+          <!-- Hospital Card — always dark text -->
+          <button id="card-hospital"
+            class="industry-card group relative flex flex-col items-start p-5 bg-white border-2 border-slate-200 rounded-xl text-left hover:border-indigo-400 hover:bg-indigo-50/40 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-150 cursor-pointer shadow-sm"
+            role="radio" aria-checked="false"
+            aria-label="Select Hospital Support Staff — City General Hospital"
+            data-industry="hospital">
+            <div class="flex items-center gap-3 mb-3 w-full">
+              <div class="text-3xl">🏥</div>
+              <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-slate-900 text-sm" data-i18n="hospital_title">Hospital Support Staff</h3>
+                <p class="text-slate-500 text-xs mt-0.5 font-medium">City General Hospital</p>
+              </div>
+              <div class="selected-check hidden w-5 h-5 bg-indigo-600 rounded-full items-center justify-center shrink-0">
+                <i data-lucide="check" class="w-3 h-3 text-white"></i>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <span class="industry-tag">ICU Sanitation</span>
+              <span class="industry-tag">Ward Attendant</span>
+              <span class="industry-tag">ER Orderly</span>
+            </div>
+          </button>
+
+        </div>
+      </div>
+
+      <!-- ── Step 2: Select Role ── -->
+      <div class="w-full max-w-2xl mb-8" id="role-selection-section">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-indigo-600 text-white text-[11px] font-bold shrink-0">2</span>
+          <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wider" data-i18n="select_role">Select Your Role</h2>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup" aria-label="Select role">
+
+          <!-- Worker Card — always dark text -->
+          <button id="card-worker"
+            class="role-card group relative flex flex-col items-start p-5 bg-white border-2 border-slate-200 rounded-xl text-left hover:border-indigo-400 hover:bg-indigo-50/40 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-150 cursor-pointer shadow-sm"
+            role="radio" aria-checked="false"
+            aria-label="Select Worker or Support Staff role"
+            data-role="worker">
+            <div class="flex items-center gap-3 mb-2 w-full">
+              <div class="text-3xl">👷</div>
+              <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-slate-900 text-sm" data-i18n="worker_title">Worker / Support Staff</h3>
+                <p class="text-slate-500 text-xs mt-0.5">Check shifts, raise safety reports, view pay</p>
+              </div>
+              <div class="selected-check hidden w-5 h-5 bg-indigo-600 rounded-full items-center justify-center shrink-0">
+                <i data-lucide="check" class="w-3 h-3 text-white"></i>
+              </div>
+            </div>
+            <!-- Worker profile selector — visible after this card is chosen -->
+            <div id="worker-profile-section" class="hidden w-full mt-3 pt-3 border-t border-slate-100" onclick="event.stopPropagation()">
+              <label for="worker-profile-select" class="text-xs font-semibold text-slate-600 mb-1.5 block" data-i18n="select_worker">Select Demo Worker</label>
+              <select id="worker-profile-select"
+                class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-sm font-medium rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                aria-label="Select demo worker profile">
+                <option value="" disabled selected>— Choose a worker —</option>
+              </select>
+            </div>
+          </button>
+
+          <!-- Supervisor Card — always dark text -->
+          <button id="card-supervisor"
+            class="role-card group relative flex flex-col items-start p-5 bg-white border-2 border-slate-200 rounded-xl text-left hover:border-indigo-400 hover:bg-indigo-50/40 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-150 cursor-pointer shadow-sm"
+            role="radio" aria-checked="false"
+            aria-label="Select Supervisor or Site Admin role"
+            data-role="supervisor">
+            <div class="flex items-center gap-3 mb-2 w-full">
+              <div class="text-3xl">📋</div>
+              <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-slate-900 text-sm" data-i18n="supervisor_title">Supervisor / Site Admin</h3>
+                <p class="text-slate-500 text-xs mt-0.5">Monitor team, approve overtime, review reports</p>
+              </div>
+              <div class="selected-check hidden w-5 h-5 bg-indigo-600 rounded-full items-center justify-center shrink-0">
+                <i data-lucide="check" class="w-3 h-3 text-white"></i>
+              </div>
+            </div>
+          </button>
+
+        </div>
+      </div>
+
+      <!-- Enter Platform CTA -->
+      <div class="w-full max-w-2xl">
+        <button id="btn-enter-platform"
+          class="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold text-base py-3.5 px-6 rounded-xl shadow-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:text-slate-400"
+          disabled aria-label="Enter FairShift Platform" aria-disabled="true">
+          <i data-lucide="log-in" class="w-4.5 h-4.5"></i>
+          <span data-i18n="enter_platform">Enter FairShift Platform</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+        <p class="text-center text-slate-400 text-xs mt-3" data-i18n="demo_note">
+          🔒 Demo mode — all data stored locally in your browser. No server required.
+        </p>
+      </div>
+
+    </section>
+
+    <!-- ══════════════════════════════════════════════
+         VIEW: WORKER INTERFACE (#worker-view)
+         Mobile-first, max-w-md centered on desktop
+    ══════════════════════════════════════════════ -->
+    <section id="worker-view"
+      class="hidden flex-col min-h-screen bg-slate-100"
+      aria-label="Worker interface" role="main">
+
+      <!-- Worker Profile Header -->
+      <div id="worker-header" class="bg-slate-900 text-white px-4 py-3.5 shadow-md">
+        <div class="max-w-md mx-auto flex items-center gap-3">
+          <div id="worker-avatar"
+            class="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center text-xl font-bold border border-slate-600"
+            aria-label="Worker avatar">👷</div>
+          <div class="flex-1 min-w-0">
+            <p class="font-semibold text-sm text-white truncate" id="worker-name-display">Worker Name</p>
+            <p class="text-slate-400 text-xs font-medium" id="worker-role-display">Role · Industry</p>
+          </div>
+          <div class="text-right">
+            <p class="text-[10px] text-slate-400 font-semibold uppercase tracking-wide" data-i18n="this_week">This Week</p>
+            <p class="font-bold text-lg text-white leading-none" id="worker-hours-display">0h</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Worker Content Area (tab panels) -->
+      <div class="flex-1 max-w-md mx-auto w-full overflow-y-auto">
+
+        <!-- TAB PANEL: Attendance & Pay -->
+        <div id="tab-attendance"
+          class="tab-panel px-4 py-4 space-y-3"
+          role="tabpanel" aria-label="Shifts and Pay" tabindex="0">
+          <!-- Injected by renderAttendanceTab() -->
+          <div class="skeleton-loader space-y-3">
+            <div class="h-28 bg-slate-200 rounded-xl animate-pulse"></div>
+            <div class="h-36 bg-slate-200 rounded-xl animate-pulse"></div>
+            <div class="h-24 bg-slate-200 rounded-xl animate-pulse"></div>
+          </div>
+        </div>
+
+        <!-- TAB PANEL: Voice Grievance & Safety -->
+        <div id="tab-voice-report"
+          class="tab-panel hidden px-4 py-4 space-y-3"
+          role="tabpanel" aria-label="Voice Grievance and Safety Report" tabindex="0">
+          <div class="skeleton-loader space-y-3">
+            <div class="h-28 bg-slate-200 rounded-xl animate-pulse"></div>
+            <div class="h-52 bg-slate-200 rounded-xl animate-pulse"></div>
+          </div>
+        </div>
+
+        <!-- TAB PANEL: Skill Passport -->
+        <div id="tab-skill-passport"
+          class="tab-panel hidden px-4 py-4 space-y-3"
+          role="tabpanel" aria-label="Skill Passport" tabindex="0">
+          <div class="skeleton-loader space-y-3">
+            <div class="h-24 bg-slate-200 rounded-xl animate-pulse"></div>
+            <div class="h-44 bg-slate-200 rounded-xl animate-pulse"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- BOTTOM NAVIGATION -->
+      <nav id="worker-bottom-nav"
+        class="sticky bottom-0 bg-white border-t border-slate-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] z-40 max-w-md mx-auto w-full"
+        role="tablist" aria-label="Worker navigation tabs">
+        <div class="flex">
+
+          <button id="nav-attendance"
+            class="worker-nav-tab active-tab flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-indigo-600 border-t-2 border-indigo-600 bg-indigo-50/60 transition-all"
+            role="tab" aria-selected="true" aria-controls="tab-attendance"
+            aria-label="Shifts and Pay tab">
+            <i data-lucide="calendar-clock" class="w-5 h-5"></i>
+            <span class="text-[11px] font-semibold" data-i18n="tab_shifts">Shifts &amp; Pay</span>
+          </button>
+
+          <button id="nav-voice-report"
+            class="worker-nav-tab flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-slate-400 border-t-2 border-transparent transition-all"
+            role="tab" aria-selected="false" aria-controls="tab-voice-report"
+            aria-label="Voice Grievance and Safety tab">
+            <i data-lucide="mic" class="w-5 h-5"></i>
+            <span class="text-[11px] font-semibold" data-i18n="tab_voice">Voice Report</span>
+          </button>
+
+          <button id="nav-skill-passport"
+            class="worker-nav-tab flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-slate-400 border-t-2 border-transparent transition-all"
+            role="tab" aria-selected="false" aria-controls="tab-skill-passport"
+            aria-label="Skill Passport tab">
+            <i data-lucide="award" class="w-5 h-5"></i>
+            <span class="text-[11px] font-semibold" data-i18n="tab_skills">Skill Passport</span>
+          </button>
+
+        </div>
+      </nav>
+
+    </section>
+
+    <!-- ══════════════════════════════════════════════
+         VIEW: SUPERVISOR DASHBOARD (#supervisor-view)
+    ══════════════════════════════════════════════ -->
+    <section id="supervisor-view"
+      class="hidden flex-col min-h-screen bg-slate-100"
+      aria-label="Supervisor dashboard" role="main">
+
+      <!-- Supervisor Header -->
+      <div class="bg-slate-900 text-white px-6 py-4 shadow-md border-b border-slate-700/50">
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h2 class="text-base font-bold text-white" id="supervisor-org-name">Organisation Dashboard</h2>
+            <p class="text-slate-400 text-xs mt-0.5" id="supervisor-subtitle">Live team overview · FairShift</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="bg-slate-700 border border-slate-600 text-slate-200 text-xs font-semibold px-2.5 py-1 rounded">
+              Supervisor View
+            </span>
+            <button id="btn-refresh-dashboard"
+              class="flex items-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold px-3 py-1.5 rounded border border-slate-600 transition-colors"
+              aria-label="Refresh dashboard data">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              <span data-i18n="refresh">Refresh</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI Strip -->
+      <div class="bg-white border-b border-slate-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-6 py-4">
+          <div id="supervisor-kpi-strip"
+            class="grid grid-cols-2 sm:grid-cols-4 gap-4"
+            aria-label="Key performance indicators">
+            <div class="skeleton-loader h-16 bg-slate-100 rounded-xl animate-pulse"></div>
+            <div class="skeleton-loader h-16 bg-slate-100 rounded-xl animate-pulse"></div>
+            <div class="skeleton-loader h-16 bg-slate-100 rounded-xl animate-pulse"></div>
+            <div class="skeleton-loader h-16 bg-slate-100 rounded-xl animate-pulse"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dashboard Grid -->
+      <div class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          <!-- COLUMNS 1–2 -->
+          <div class="lg:col-span-2 space-y-6">
+
+            <!-- Team Roster -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
+                <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                  <i data-lucide="users" class="w-4 h-4 text-indigo-500"></i>
+                  <span data-i18n="team_roster">Team Roster</span>
+                </h3>
+                <input id="roster-search" type="search" placeholder="Search workers…"
+                  class="text-xs border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 w-36 bg-slate-50"
+                  aria-label="Search workers in roster" />
+              </div>
+              <div id="supervisor-roster"
+                class="divide-y divide-slate-50 max-h-96 overflow-y-auto"
+                role="list" aria-label="Team roster list">
+                <div class="skeleton-loader p-4 space-y-2">
+                  <div class="h-10 bg-slate-100 rounded-lg animate-pulse"></div>
+                  <div class="h-10 bg-slate-100 rounded-lg animate-pulse"></div>
+                  <div class="h-10 bg-slate-100 rounded-lg animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Safety Reports -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
+                <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                  <i data-lucide="shield-alert" class="w-4 h-4 text-red-500"></i>
+                  <span data-i18n="safety_reports">Safety &amp; Grievance Reports</span>
+                </h3>
+                <span id="unread-reports-badge"
+                  class="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full tabular-nums"
+                  aria-label="Unread reports count">0</span>
+              </div>
+              <div id="supervisor-reports"
+                class="divide-y divide-slate-50 max-h-80 overflow-y-auto"
+                role="list" aria-label="Safety and grievance reports">
+                <div class="skeleton-loader p-4 space-y-2">
+                  <div class="h-12 bg-slate-100 rounded-lg animate-pulse"></div>
+                  <div class="h-12 bg-slate-100 rounded-lg animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- COLUMN 3: Sidebar -->
+          <div class="space-y-6">
+
+            <!-- Fatigue Alerts -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              <div class="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100">
+                <i data-lucide="activity" class="w-4 h-4 text-amber-500"></i>
+                <h3 class="font-semibold text-sm text-slate-800" data-i18n="fatigue_alerts">Fatigue Alerts</h3>
+              </div>
+              <div id="fatigue-alerts-panel"
+                class="p-4 space-y-2 max-h-64 overflow-y-auto"
+                aria-label="Worker fatigue alerts">
+              </div>
+            </div>
+
+            <!-- Compliance -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              <div class="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100">
+                <i data-lucide="clipboard-check" class="w-4 h-4 text-emerald-500"></i>
+                <h3 class="font-semibold text-sm text-slate-800" data-i18n="compliance">Compliance Snapshot</h3>
+              </div>
+              <div id="compliance-panel" class="p-4 space-y-3" aria-label="Compliance metrics"></div>
+            </div>
+
+            <!-- SDG 8 Impact -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              <div class="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100">
+                <span class="text-base">🎯</span>
+                <h3 class="font-semibold text-sm text-slate-800">SDG 8 Impact Metrics</h3>
+              </div>
+              <div id="sdg8-impact-panel" class="p-4 space-y-3" aria-label="SDG 8 impact metrics"></div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ============================================================
+       MODAL: Industry Impact Guide
+  ============================================================ -->
+  <div id="impact-guide-modal"
+    class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+    role="dialog" aria-modal="true" aria-labelledby="impact-guide-title">
+    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] flex flex-col border border-slate-200">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <h2 id="impact-guide-title" class="font-bold text-slate-900 text-base">
+          Industry Impact Guide — FairShift × SDG 8
+        </h2>
+        <button id="close-impact-guide"
+          class="text-slate-400 hover:text-slate-700 transition-colors rounded"
+          aria-label="Close impact guide">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="overflow-y-auto px-5 py-4 space-y-4 text-sm text-slate-700">
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <h3 class="font-semibold text-amber-900 mb-2 text-xs uppercase tracking-wide">🏗️ Construction Site — Metro Infra Corp</h3>
+          <ul class="space-y-1 list-disc list-inside text-amber-800 text-xs">
+            <li>Prevents underpayment via automated wage calculation</li>
+            <li>Safety incident reporting reduces accident rates by ~30%</li>
+            <li>Skill passport unlocks access to certified roles</li>
+            <li>Overtime alert compliance with Labour Code 2020</li>
+          </ul>
+        </div>
+        <div class="bg-teal-50 border border-teal-200 rounded-lg p-4">
+          <h3 class="font-semibold text-teal-900 mb-2 text-xs uppercase tracking-wide">🏥 Hospital Support Staff — City General Hospital</h3>
+          <ul class="space-y-1 list-disc list-inside text-teal-800 text-xs">
+            <li>Night shift differential ensures fair pay for antisocial hours</li>
+            <li>Biohazard exposure reports protect vulnerable workers</li>
+            <li>Sanitation certifications documented on digital skill passport</li>
+            <li>Fatigue monitoring prevents burnout in critical care areas</li>
+          </ul>
+        </div>
+        <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+          <h3 class="font-semibold text-indigo-900 mb-2 text-xs uppercase tracking-wide">🎯 SDG 8 Target Alignment</h3>
+          <ul class="space-y-1 list-disc list-inside text-indigo-800 text-xs">
+            <li><strong>8.5</strong> — Full &amp; productive employment, equal pay</li>
+            <li><strong>8.7</strong> — End forced labour, modern slavery</li>
+            <li><strong>8.8</strong> — Safe working environments for all workers</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast-container"
+    class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 items-center pointer-events-none"
+    aria-live="polite" aria-atomic="true">
+  </div>
+
+  <script src="app.js"></script>
+
+</body>
+</html>

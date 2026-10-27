@@ -1,0 +1,9 @@
+{
+  "name": "FairShift — SDG 8 Decent Work Platform",
+  "short_name": "FairShift",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "description": "Decent Work Platform for Employee-Intensive Organisations (SDG 8)"
+}
