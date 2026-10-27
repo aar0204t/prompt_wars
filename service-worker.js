@@ -1,9 +1,10 @@
 /**
  * FairShift — Service Worker
  * Caches core app shell assets for offline availability (SDG 8 PWA)
+ * Strategy: Network-First with Cache Fallback for instant updates
  */
 
-const CACHE_NAME = 'fairshift-v2';
+const CACHE_NAME = 'fairshift-v3';
 const ASSETS_TO_CACHE = [
   './index.html',
   './styles.css',
@@ -14,7 +15,7 @@ const ASSETS_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[FairShift SW] Caching app shell');
+      console.log('[FairShift SW] Pre-caching app shell assets');
       return cache.addAll(ASSETS_TO_CACHE);
     }).then(() => self.skipWaiting())
   );
@@ -26,7 +27,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('[FairShift SW] Removing old cache', key);
+            console.log('[FairShift SW] Removing outdated cache:', key);
             return caches.delete(key);
           }
         })
@@ -35,17 +36,14 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Network-First Strategy: always attempt fresh network fetch, fallback to cache when offline
 self.addEventListener('fetch', (event) => {
-  // Only handle http/https requests (ignore chrome-extension, etc.)
   if (!event.request.url.startsWith('http')) return;
 
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).then((networkResponse) => {
-        // Cache successful local responses
+    fetch(event.request)
+      .then((networkResponse) => {
+        // Cache successful GET responses from our origin
         if (
           networkResponse &&
           networkResponse.status === 200 &&
@@ -58,12 +56,17 @@ self.addEventListener('fetch', (event) => {
           });
         }
         return networkResponse;
-      }).catch(() => {
-        // Fallback to cached index.html for navigation requests
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
-      });
-    })
+      })
+      .catch(() => {
+        // Offline fallback to cache
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          if (event.request.mode === 'navigate') {
+            return caches.match('./index.html');
+          }
+        });
+      })
   );
 });

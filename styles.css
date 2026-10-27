@@ -14,9 +14,36 @@ body {
 }
 
 /* ─── Global Dark Mode Overrides ───────────────────────────── */
+.dark body,
 html.dark body {
   background-color: #0b1120 !important; /* deep slate-950 */
   color: #f1f5f9 !important;
+}
+
+/* Explicit class-level utility overrides for Tailwind classes in dark mode */
+.dark .bg-white {
+  background-color: #1e293b !important; /* slate-800 */
+}
+.dark .bg-slate-50 {
+  background-color: #0b1120 !important; /* slate-950 */
+}
+.dark .bg-slate-100 {
+  background-color: #0f172a !important; /* slate-900 */
+}
+.dark .border-slate-200 {
+  border-color: #334155 !important;     /* slate-700 */
+}
+.dark .border-slate-100 {
+  border-color: #1e293b !important;     /* slate-800 */
+}
+.dark .text-slate-900 {
+  color: #f8fafc !important;             /* slate-50 */
+}
+.dark .text-slate-800 {
+  color: #f1f5f9 !important;             /* slate-100 */
+}
+.dark .text-slate-700 {
+  color: #e2e8f0 !important;             /* slate-200 */
 }
 
 html.dark #login-view {
