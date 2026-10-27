@@ -1,0 +1,24 @@
+{
+  "name": "fairshift",
+  "version": "1.0.0",
+  "description": "FairShift — A Decent Work Platform for Employee-Intensive Organisations (UN SDG 8)",
+  "main": "app.js",
+  "scripts": {
+    "test": "node test.js || python test.py",
+    "test:node": "node test.js",
+    "test:python": "python test.py"
+  },
+  "keywords": [
+    "sdg8",
+    "decent-work",
+    "pwa",
+    "fair-wages",
+    "worker-platform",
+    "offline-first"
+  ],
+  "author": "FairShift Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
