@@ -20,9 +20,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;600;700&display=swap" rel="stylesheet" />
 
-  <!-- Tailwind custom config — enterprise palette -->
+  <!-- Tailwind custom config — enterprise palette with dark mode support -->
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
           fontFamily: {
@@ -114,6 +115,15 @@
           </select>
           <i data-lucide="chevron-down" class="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"></i>
         </div>
+
+        <!-- Dark Mode Toggle Button (Strictly No Emojis) -->
+        <button id="btn-theme-toggle"
+          class="flex items-center gap-1.5 text-slate-300 hover:text-white text-xs font-medium px-2.5 py-1.5 rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          aria-label="Toggle dark mode"
+          title="Toggle light/dark theme">
+          <i data-lucide="moon" id="theme-toggle-icon" class="w-3.5 h-3.5 text-slate-300"></i>
+          <span id="theme-toggle-text" class="hidden sm:inline text-xs">Dark</span>
+        </button>
 
         <!-- Offline Simulate Toggle -->
         <div class="flex items-center gap-1.5" title="Simulate offline mode for demo judges">
@@ -419,9 +429,6 @@
               <i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i>
               <span id="analytics-toggle-label">Load Workforce Analytics Charts</span>
             </button>
-            <span class="bg-slate-700 border border-slate-600 text-slate-200 text-xs font-semibold px-2.5 py-1.5 rounded">
-              Supervisor View
-            </span>
             <button id="btn-refresh-dashboard"
               class="flex items-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold px-3 py-1.5 rounded border border-slate-600 transition-colors"
               aria-label="Refresh dashboard data">

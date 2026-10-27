@@ -13,6 +13,162 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ─── Global Dark Mode Overrides ───────────────────────────── */
+html.dark body {
+  background-color: #0b1120 !important; /* deep slate-950 */
+  color: #f1f5f9 !important;
+}
+
+html.dark #login-view {
+  background-color: #0b1120 !important;
+}
+
+html.dark #worker-view,
+html.dark #supervisor-view {
+  background-color: #0b1120 !important;
+}
+
+html.dark .enterprise-card,
+html.dark .kpi-card,
+html.dark .shift-card {
+  background-color: #1e293b !important; /* slate-800 */
+  border-color: #334155 !important;     /* slate-700 */
+  color: #f1f5f9 !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+html.dark .industry-card,
+html.dark .role-card {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+html.dark .industry-card h3,
+html.dark .role-card h3,
+html.dark .industry-card p,
+html.dark .role-card p {
+  color: #f1f5f9 !important;
+}
+html.dark .industry-card p.text-slate-500,
+html.dark .role-card p.text-slate-500 {
+  color: #94a3b8 !important; /* slate-400 */
+}
+
+html.dark .industry-card[aria-checked="true"],
+html.dark .role-card[aria-checked="true"] {
+  background-color: #312e81 !important; /* indigo-950 */
+  border-color: #6366f1 !important;     /* indigo-500 */
+}
+
+html.dark .industry-tag {
+  background-color: #334155 !important;
+  color: #cbd5e1 !important;
+  border-color: #475569 !important;
+}
+
+html.dark #worker-bottom-nav {
+  background-color: #0f172a !important;
+  border-top-color: #1e293b !important;
+}
+html.dark .worker-nav-tab {
+  color: #94a3b8 !important;
+}
+html.dark .worker-nav-tab.active-tab {
+  color: #818cf8 !important; /* indigo-400 */
+  border-top-color: #818cf8 !important;
+  background-color: #1e1b4b !important; /* indigo-950/70 */
+}
+
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark #analytics-drawer {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+}
+
+html.dark .payslip-row {
+  border-bottom-color: #334155 !important;
+}
+html.dark .payslip-row .label {
+  color: #cbd5e1 !important;
+}
+html.dark .payslip-row .amount {
+  color: #f8fafc !important;
+}
+html.dark .payslip-row.total {
+  border-top-color: #475569 !important;
+}
+html.dark .payslip-row.total .label {
+  color: #f8fafc !important;
+}
+
+html.dark .tts-btn {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+html.dark .tts-btn:hover {
+  background-color: #312e81 !important;
+  border-color: #6366f1 !important;
+  color: #c7d2fe !important;
+}
+
+html.dark .ot-demo-btn {
+  background-color: #1e293b !important;
+  border-color: #475569 !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .kpi-label {
+  color: #94a3b8 !important;
+}
+html.dark .kpi-value {
+  color: #f8fafc !important;
+}
+
+html.dark .roster-row:hover {
+  background-color: #334155 !important;
+}
+html.dark .attendance-row.present {
+  background-color: #1e293b !important;
+}
+
+html.dark .report-filter-pill {
+  background-color: #1e293b !important;
+  color: #cbd5e1 !important;
+  border-color: #334155 !important;
+}
+html.dark .report-filter-pill.active {
+  background-color: #4f46e5 !important;
+  color: #ffffff !important;
+  border-color: #6366f1 !important;
+}
+
+html.dark #impact-guide-modal > div,
+html.dark #passport-modal > div {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark #passport-modal-content {
+  background-color: #0f172a !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark text,
+html.dark h1,
+html.dark h2,
+html.dark h3,
+html.dark h4 {
+  color: #f8fafc;
+}
+
 /* ─── View transitions ─────────────────────────────────────── */
 .view-enter { animation: viewEnter 0.2s ease-out; }
 @keyframes viewEnter {

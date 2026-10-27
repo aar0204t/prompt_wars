@@ -598,6 +598,7 @@ const DEFAULT_STATE = {
   selectedWorkerId: null,
   currentView:      'login',
   isOffline:        false,
+  darkMode:         false,  // persistent dark theme preference
   offlineQueue:     [],     // actions queued while offline
   lastUpdated:      new Date().toISOString(),
 };
@@ -873,8 +874,80 @@ function flushOfflineQueue() {
 }
 
 /* ============================================================
-   SECTION 7 — TOAST NOTIFICATIONS
+   SECTION 6-B — THEME / DARK MODE MANAGER (Strictly No Emojis)
    ============================================================ */
+
+const THEME_STORAGE_KEY = 'fairshift_theme_dark';
+
+/**
+ * applyTheme — Toggles the .dark class on <html> and updates the toggle button UI
+ * @param {boolean} isDark
+ */
+function applyTheme(isDark) {
+  const root = document.documentElement;
+  const toggleText = document.getElementById('theme-toggle-text');
+  const toggleIcon = document.getElementById('theme-toggle-icon');
+
+  if (isDark) {
+    root.classList.add('dark');
+    if (toggleText) toggleText.textContent = 'Light';
+    if (toggleIcon) {
+      toggleIcon.setAttribute('data-lucide', 'sun');
+    }
+  } else {
+    root.classList.remove('dark');
+    if (toggleText) toggleText.textContent = 'Dark';
+    if (toggleIcon) {
+      toggleIcon.setAttribute('data-lucide', 'moon');
+    }
+  }
+
+  // Persist preference to localStorage
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(isDark));
+    saveState({ darkMode: isDark });
+  } catch (e) {
+    console.warn('Could not save theme preference:', e);
+  }
+
+  // Refresh Lucide icon sprite
+  if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+  }
+}
+
+/**
+ * initTheme — Loads stored theme preference or defaults to system setting
+ */
+function initTheme() {
+  let isDark = false;
+  try {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored !== null) {
+      isDark = JSON.parse(stored);
+    } else {
+      // Check system preference
+      isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+  } catch (e) {
+    isDark = false;
+  }
+
+  applyTheme(isDark);
+}
+
+/** Wire top bar theme toggle button */
+function wireThemeToggleButton() {
+  const btn = document.getElementById('btn-theme-toggle');
+  if (!btn) return;
+
+  btn.addEventListener('click', () => {
+    const isCurrentlyDark = document.documentElement.classList.contains('dark');
+    const newTheme = !isCurrentlyDark;
+    applyTheme(newTheme);
+    showToast(newTheme ? 'Dark theme enabled' : 'Light theme enabled', 'default');
+  });
+}
 
 /**
  * showToast — Displays a transient notification at the bottom of the screen.
@@ -1076,6 +1149,9 @@ function initTopBar() {
       e.currentTarget.classList.add('hidden');
     }
   });
+
+  // Theme toggle button
+  wireThemeToggleButton();
 
   // Offline toggle
   document.getElementById('offline-toggle')?.addEventListener('click', () => {
@@ -3510,6 +3586,9 @@ function renderSDG8Panel(workers, reports) {
 function init() {
   // 1. Seed localStorage
   initLocalStorage();
+
+  // 1-B. Initialize Dark Theme (Strictly No Emojis)
+  initTheme();
 
   // 2. Initialise Lucide icon sprites
   if (typeof lucide !== 'undefined') {
