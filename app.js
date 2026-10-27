@@ -2801,8 +2801,14 @@ function initWorkerTabs() {
 }
 
 /* ============================================================
-   SECTION 11 — SUPERVISOR DASHBOARD RENDERER
+   SECTION 11 — SUPERVISOR DASHBOARD RENDERER (Step 5 Enhanced)
    ============================================================ */
+
+/** Active report filter for the Command Center */
+let currentReportFilter = 'all';
+
+/** Whether analytics drawer is currently visible */
+let isAnalyticsDrawerOpen = false;
 
 /**
  * renderSupervisorView — Populates the supervisor dashboard with
@@ -2812,25 +2818,34 @@ function initWorkerTabs() {
 function renderSupervisorView(industry) {
   const allWorkers = getWorkers().filter(w => w.industry === industry);
   const allReports = getReports().filter(r => r.industry === industry);
-  const orgName    = allWorkers[0]?.orgName ?? 'Organisation';
+  const orgName    = allWorkers[0]?.orgName ?? (industry === 'hospital' ? 'City General Hospital' : 'Metro Infra Corp');
 
   // Update header
   const orgNameEl  = document.getElementById('supervisor-org-name');
   const subtitleEl = document.getElementById('supervisor-subtitle');
   if (orgNameEl)  orgNameEl.textContent  = sanitizeHTML(orgName);
-  if (subtitleEl) subtitleEl.textContent = `Live team overview · ${allWorkers.length} workers · FairShift`;
+  if (subtitleEl) subtitleEl.textContent = `Enterprise Live Control · ${allWorkers.length} Active Workers · FairShift SDG 8`;
 
-  renderKPIs(allWorkers, allReports);
-  renderRoster(allWorkers);
-  renderReportsPanel(allReports);
+  // Render modular sub-components
+  renderKPIs(allWorkers, allReports, industry);
+  renderSupervisorRoster(allWorkers);
+  renderCommandCenterReports(allReports);
+  renderSkillVerificationMatrix(allWorkers);
   renderFatigueAlerts(allWorkers);
   renderCompliancePanel(allWorkers);
   renderSDG8Panel(allWorkers, allReports);
 
+  // Wire filter pills once
+  wireReportFilterPills(allReports);
+
+  // Wire Analytics drawer toggle
+  wireAnalyticsDrawerToggle(allWorkers, allReports);
+
   // Refresh button
   document.getElementById('btn-refresh-dashboard')?.addEventListener('click', () => {
-    renderSupervisorView(industry);
-    showToast('🔄 Dashboard refreshed', 'success');
+    const freshIndustry = getState().selectedIndustry || industry;
+    renderSupervisorView(freshIndustry);
+    showToast('🔄 Supervisor Dashboard refreshed with live data', 'success');
   });
 
   // Roster search
@@ -2838,175 +2853,543 @@ function renderSupervisorView(industry) {
     const q = e.target.value.toLowerCase().trim();
     document.querySelectorAll('.roster-row').forEach(row => {
       const name = row.dataset.name?.toLowerCase() ?? '';
-      row.style.display = name.includes(q) ? '' : 'none';
+      const role = row.dataset.role?.toLowerCase() ?? '';
+      row.style.display = (name.includes(q) || role.includes(q)) ? '' : 'none';
+    });
+  });
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+/** 1. Top KPI Summary Cards (Dynamic by Industry) */
+function renderKPIs(workers, reports, industry) {
+  const strip = document.getElementById('supervisor-kpi-strip');
+  if (!strip) return;
+
+  const totalWorkers = workers.length;
+  const checkedInCount = workers.filter(w => w.shiftClockedIn).length;
+  const activeFatigueAlerts = workers.filter(w => w.hoursWorkedThisWeek > 48 || w.fatigueStatus === 'critical' || w.fatigueStatus === 'high').length;
+  const openReports = reports.filter(r => r.status === 'open' || r.status === 'under_review');
+  const criticalReportsCount = openReports.filter(r => r.severity === 'critical' || r.severity === 'high').length;
+
+  // Calculate compliance: workers with up to date certifications
+  const totalBadges = workers.reduce((acc, w) => acc + (w.skillBadges?.length || 0), 0);
+  const verifiedBadges = workers.reduce((acc, w) => acc + (w.skillBadges?.filter(b => b.status === 'verified').length || 0), 0);
+  const compliancePct = totalBadges > 0 ? Math.round((verifiedBadges / totalBadges) * 100) : 92;
+
+  strip.innerHTML = `
+    <!-- Card 1: Active Workforce On-Shift -->
+    <div class="kpi-card border-l-4 border-l-indigo-600">
+      <div class="kpi-label flex items-center justify-between">
+        <span>Active Workforce On-Shift</span>
+        <i data-lucide="users" class="w-3.5 h-3.5 text-indigo-500"></i>
+      </div>
+      <div class="kpi-value text-indigo-700">${checkedInCount} / ${totalWorkers}</div>
+      <div class="kpi-sub font-semibold text-slate-500">
+        ${checkedInCount > 0 ? `${Math.round((checkedInCount/totalWorkers)*100)}% Live On-Site` : 'All Standby / Shift Transition'}
+      </div>
+    </div>
+
+    <!-- Card 2: Fatigue & Overtime Alerts -->
+    <div class="kpi-card border-l-4 ${activeFatigueAlerts > 0 ? 'border-l-amber-500' : 'border-l-emerald-500'}">
+      <div class="kpi-label flex items-center justify-between">
+        <span>Fatigue &amp; Overtime Flags</span>
+        <i data-lucide="alert-triangle" class="w-3.5 h-3.5 ${activeFatigueAlerts > 0 ? 'text-amber-500' : 'text-emerald-500'}"></i>
+      </div>
+      <div class="kpi-value ${activeFatigueAlerts > 0 ? 'text-amber-600' : 'text-emerald-600'}">
+        ${activeFatigueAlerts}
+      </div>
+      <div class="kpi-sub font-semibold ${activeFatigueAlerts > 0 ? 'text-amber-700' : 'text-slate-400'}">
+        ${activeFatigueAlerts > 0 ? 'Workers > 48h limit (SDG 8.8)' : '100% Rosters Well-Rested'}
+      </div>
+    </div>
+
+    <!-- Card 3: Open Safety & Grievance Reports -->
+    <div class="kpi-card border-l-4 ${criticalReportsCount > 0 ? 'border-l-red-500' : 'border-l-slate-400'}">
+      <div class="kpi-label flex items-center justify-between">
+        <span>Open Safety &amp; Grievances</span>
+        <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-red-500"></i>
+      </div>
+      <div class="kpi-value ${criticalReportsCount > 0 ? 'text-red-600' : 'text-slate-800'}">
+        ${openReports.length}
+      </div>
+      <div class="kpi-sub font-semibold text-slate-500">
+        ${criticalReportsCount > 0 ? `<span class="text-red-600 font-bold">${criticalReportsCount} Critical / High priority</span>` : '0 Critical unresolved'}
+      </div>
+    </div>
+
+    <!-- Card 4: Skill & Safety Compliance % -->
+    <div class="kpi-card border-l-4 border-l-emerald-500">
+      <div class="kpi-label flex items-center justify-between">
+        <span>Skill &amp; Safety Compliance</span>
+        <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-500"></i>
+      </div>
+      <div class="kpi-value text-emerald-600">${compliancePct}%</div>
+      <div class="kpi-sub font-semibold text-slate-500">
+        ${verifiedBadges} verified industry badges
+      </div>
+    </div>
+  `;
+
+  const badge = document.getElementById('unread-reports-badge');
+  if (badge) badge.textContent = openReports.length;
+}
+
+/** 2. Interactive Safety & Grievance Command Center */
+function renderCommandCenterReports(reports) {
+  const container = document.getElementById('supervisor-reports');
+  if (!container) return;
+
+  // Apply active filter pill
+  let filtered = [...reports];
+  if (currentReportFilter === 'critical') {
+    filtered = filtered.filter(r => (r.severity === 'critical' || r.severity === 'high'));
+  } else if (currentReportFilter === 'anonymous') {
+    filtered = filtered.filter(r => r.isAnonymous);
+  } else if (currentReportFilter === 'unresolved') {
+    filtered = filtered.filter(r => r.status !== 'resolved');
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="p-8 text-center text-slate-400 text-xs">
+        <i data-lucide="check-circle" class="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80"></i>
+        <p class="font-bold text-slate-600">No reports matching filter "${currentReportFilter}".</p>
+        <p class="text-[11px] text-slate-400 mt-0.5">All issues under this criterion are addressed or none submitted.</p>
+      </div>
+    `;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    return;
+  }
+
+  container.innerHTML = filtered.map(r => {
+    const refId = r.refId || '#FS-' + r.id.replace('r-','').slice(-4);
+    const isAnon = !!r.isAnonymous;
+    const displayName = isAnon ? '🔒 Anonymous Worker (Protected)' : (r.workerName || 'Worker');
+    const stage = r.stage || (r.status === 'resolved' ? 4 : r.status === 'under_review' ? 2 : 1);
+
+    const severityPill = (r.severity === 'critical' || r.severity === 'Critical') ? 'pill-red'
+      : (r.severity === 'high' || r.severity === 'High') ? 'pill-amber' : 'pill-indigo';
+
+    return `
+      <div class="p-4 hover:bg-slate-50/60 transition-colors space-y-3" data-report-id="${sanitizeAttr(r.id)}">
+        <!-- Header row -->
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap mb-1">
+              <span class="font-extrabold text-xs text-indigo-700">${refId}</span>
+              <span class="status-pill ${severityPill} text-[9px] uppercase font-bold">${r.severity}</span>
+              <span class="status-pill pill-slate text-[9px] font-semibold">${sanitizeHTML(r.category || 'Safety Hazard')}</span>
+              ${isAnon ? `<span class="bg-purple-100 text-purple-800 border border-purple-200 text-[9px] px-1.5 py-0.2 rounded font-extrabold">🔒 ANONYMOUS WHISTLEBLOWER</span>` : ''}
+            </div>
+            <h4 class="font-bold text-slate-900 text-xs mt-0.5">${sanitizeHTML(r.title)}</h4>
+            <p class="text-slate-600 text-xs mt-1 leading-relaxed">${sanitizeHTML(r.description || r.title)}</p>
+            ${r.originalText ? `
+              <p class="text-[11px] text-indigo-900 bg-indigo-50/60 rounded p-1.5 mt-1.5 font-medium border border-indigo-100/60">
+                <span class="font-bold text-[10px] text-indigo-600 uppercase tracking-wider block">Original Voice Transcript:</span>
+                "${sanitizeHTML(r.originalText)}"
+              </p>
+            ` : ''}
+          </div>
+          <div class="text-right shrink-0">
+            <p class="text-[11px] font-semibold ${isAnon ? 'text-purple-700 font-bold' : 'text-slate-700'}">${sanitizeHTML(displayName)}</p>
+            <p class="text-[10px] text-slate-400 mt-0.5">📍 ${sanitizeHTML(r.location || 'General Site')}</p>
+            <p class="text-[10px] text-slate-400">${new Date(r.timestamp).toLocaleDateString('en-IN', { day:'numeric', month:'short' })}</p>
+          </div>
+        </div>
+
+        <!-- Supervisor Action Controls (Live Two-Way Sync) -->
+        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+          <div class="flex items-center gap-2">
+            <label class="text-[11px] font-bold text-slate-600 shrink-0">Stage / Status:</label>
+            <select class="report-status-dropdown bg-white border border-slate-300 rounded text-xs font-semibold px-2 py-1 text-slate-800 focus:ring-2 focus:ring-indigo-500"
+              data-report-id="${sanitizeAttr(r.id)}">
+              <option value="1" ${stage === 1 ? 'selected' : ''}>1. Submitted (Open)</option>
+              <option value="2" ${stage === 2 ? 'selected' : ''}>2. Under Review</option>
+              <option value="3" ${stage === 3 ? 'selected' : ''}>3. Action Taken</option>
+              <option value="4" ${stage === 4 ? 'selected' : ''}>4. Resolved</option>
+            </select>
+          </div>
+
+          <div class="flex-1 flex items-center gap-1.5">
+            <input type="text" placeholder="Assign action or note to worker..."
+              value="${sanitizeAttr(r.supervisorNote || '')}"
+              class="report-note-input flex-1 text-xs border border-slate-300 rounded px-2.5 py-1 bg-white text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              data-report-id="${sanitizeAttr(r.id)}" />
+            <button class="btn-save-report-action px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded text-xs font-bold transition-all shrink-0"
+              data-report-id="${sanitizeAttr(r.id)}">
+              Save Note
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Wire interactive status change
+  container.querySelectorAll('.report-status-dropdown').forEach(dropdown => {
+    dropdown.addEventListener('change', (e) => {
+      const repId = dropdown.dataset.reportId;
+      const newStage = parseInt(e.target.value, 10);
+      const allReps = getReports();
+      const target = allReps.find(r => r.id === repId);
+      if (!target) return;
+
+      target.stage = newStage;
+      target.status = newStage === 4 ? 'resolved' : newStage === 2 ? 'under_review' : 'open';
+      if (newStage === 4) target.resolvedAt = new Date().toISOString();
+      saveReport(target);
+
+      showToast(`✅ Report ${target.refId || repId} status updated to Stage ${newStage}`, 'success');
+      const ind = getState().selectedIndustry;
+      renderSupervisorView(ind);
+    });
+  });
+
+  // Wire save supervisor note
+  container.querySelectorAll('.btn-save-report-action').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const repId = btn.dataset.reportId;
+      const input = container.querySelector(`.report-note-input[data-report-id="${repId}"]`);
+      if (!input) return;
+
+      const noteText = input.value.trim();
+      const allReps = getReports();
+      const target = allReps.find(r => r.id === repId);
+      if (!target) return;
+
+      target.supervisorNote = noteText;
+      saveReport(target);
+
+      showToast(`📝 Supervisor response note saved! Reflected to worker.`, 'success');
+      const ind = getState().selectedIndustry;
+      renderSupervisorView(ind);
+    });
+  });
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+/** Wire filter pills on reports command center */
+function wireReportFilterPills(reports) {
+  const container = document.getElementById('reports-filter-container');
+  if (!container) return;
+
+  container.querySelectorAll('.report-filter-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      container.querySelectorAll('.report-filter-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      currentReportFilter = pill.dataset.filter || 'all';
+      renderCommandCenterReports(reports);
     });
   });
 }
 
-/** Render the 4 KPI summary cards */
-function renderKPIs(workers, reports) {
-  const strip = document.getElementById('supervisor-kpi-strip');
-  if (!strip) return;
-
-  const activeWorkers    = workers.length;
-  const pendingApprovals = workers.filter(w => w.overtimePendingApproval).length;
-  const openReports      = reports.filter(r => r.status === 'open').length;
-  const totalHours       = workers.reduce((s, w) => s + w.hoursWorkedThisWeek, 0);
-  const targetHours      = workers.reduce((s, w) => s + w.weeklyHoursTarget, 0);
-  const compliance       = targetHours > 0 ? Math.round((Math.min(totalHours, targetHours) / targetHours) * 100) : 0;
-
-  strip.innerHTML = `
-    <div class="kpi-card">
-      <div class="kpi-label">${t('workers_active')}</div>
-      <div class="kpi-value text-blue-700">${activeWorkers}</div>
-      <div class="kpi-sub">Across ${[...new Set(workers.map(w => w.jobRole))].length} roles</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">${t('pending_approvals')}</div>
-      <div class="kpi-value ${pendingApprovals > 0 ? 'text-amber-600' : 'text-gray-800'}">${pendingApprovals}</div>
-      <div class="kpi-sub">Overtime awaiting sign-off</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">${t('open_reports')}</div>
-      <div class="kpi-value ${openReports > 0 ? 'text-red-600' : 'text-gray-800'}">${openReports}</div>
-      <div class="kpi-sub">Safety &amp; grievance</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">${t('compliance_rate')}</div>
-      <div class="kpi-value ${compliance >= 90 ? 'text-green-600' : compliance >= 70 ? 'text-amber-600' : 'text-red-600'}">${compliance}%</div>
-      <div class="kpi-sub">Hours vs target</div>
-    </div>
-  `;
-
-  // Update unread reports badge
-  const badge = document.getElementById('unread-reports-badge');
-  if (badge) badge.textContent = openReports;
-}
-
-/** Render the team roster rows */
-function renderRoster(workers) {
+/** 3. Shift-End, Overtime & Supportive Fatigue Management Table */
+function renderSupervisorRoster(workers) {
   const container = document.getElementById('supervisor-roster');
   if (!container) return;
 
-  const fatigueColors = {
-    ok:       'bg-green-100 text-green-700',
-    moderate: 'bg-yellow-100 text-yellow-700',
-    high:     'bg-orange-100 text-orange-700',
-    critical: 'bg-red-100 text-red-700',
-  };
-  const fatigueIcons = { ok: '✅', moderate: '⚠️', high: '🟠', critical: '🔴' };
-
   container.innerHTML = workers.map(w => {
-    const overPay = w.overtimePendingApproval
-      ? `<button class="text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold px-2 py-1 rounded-full transition-colors approve-ot-btn" data-worker-id="${sanitizeAttr(w.id)}" aria-label="Approve overtime for ${sanitizeAttr(w.name)}">✅ Approve OT</button>`
-      : '';
+    const isClockedIn = !!w.shiftClockedIn;
+    const hours = w.hoursWorkedThisWeek || 0;
+    const ot = w.overtimeHours || 0;
+    const isCriticalFatigue = hours > 48 || w.fatigueStatus === 'critical';
+    const isModerateFatigue = hours >= 40 || w.fatigueStatus === 'high' || w.fatigueStatus === 'moderate';
+
+    const fatiguePillClass = isCriticalFatigue ? 'fatigue-pill-danger'
+      : isModerateFatigue ? 'fatigue-pill-moderate' : 'fatigue-pill-healthy';
+
+    const fatigueLabel = isCriticalFatigue ? '🚨 High Fatigue Risk (>48h)'
+      : isModerateFatigue ? '⚠️ Overtime Active' : '✅ Compliant Schedule';
+
     return `
-      <div class="roster-row" role="listitem" data-name="${sanitizeAttr(w.name)}">
-        <div class="text-2xl shrink-0">${w.avatar}</div>
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="font-bold text-sm text-gray-900 truncate">${sanitizeHTML(w.name)}</span>
-            <span class="pay-pill ${fatigueColors[w.fatigueStatus] ?? 'bg-gray-100 text-gray-600'} text-xs">
-              ${fatigueIcons[w.fatigueStatus] ?? ''} ${w.fatigueStatus}
-            </span>
+      <div class="roster-row p-3 hover:bg-slate-50 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+        data-name="${sanitizeAttr(w.name)}" data-role="${sanitizeAttr(w.jobRole)}">
+        <!-- Worker info -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-xl shrink-0">
+            ${w.avatar}
           </div>
-          <p class="text-xs text-gray-500 truncate">${sanitizeHTML(w.jobRole)} · ${w.hoursWorkedThisWeek}h / ${w.weeklyHoursTarget}h</p>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-sm text-slate-900">${sanitizeHTML(w.name)}</span>
+              <span class="text-[10px] font-mono text-slate-500 font-semibold">${sanitizeHTML(w.employeeId)}</span>
+              ${isClockedIn ? `
+                <span class="status-pill pill-green text-[9px]">● On Shift</span>
+              ` : `
+                <span class="status-pill pill-slate text-[9px]">○ Shift Off</span>
+              `}
+            </div>
+            <p class="text-xs text-slate-500">${sanitizeHTML(w.jobRole)} · Base Rate ₹${w.baseHourlyWage}/hr</p>
+          </div>
         </div>
-        <div class="text-right shrink-0 space-y-1">
-          <div class="text-sm font-bold text-gray-800">₹${Math.round(w.weeklyEarnings).toLocaleString('en-IN')}</div>
-          ${overPay}
+
+        <!-- Hours & Fatigue Status -->
+        <div class="flex items-center gap-3 flex-wrap">
+          <div class="text-right">
+            <span class="text-xs font-bold text-slate-800">${hours}h logged</span>
+            <span class="text-[11px] text-amber-600 block font-semibold">${ot > 0 ? `(${ot}h overtime)` : 'No overtime'}</span>
+          </div>
+
+          <span class="status-pill ${fatiguePillClass} text-[10px] font-bold">
+            ${fatigueLabel}
+          </span>
+
+          <!-- Supportive Actions -->
+          <div class="flex items-center gap-1.5 shrink-0">
+            ${isCriticalFatigue ? `
+              <button class="btn-paid-rest px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded transition-all shadow-sm"
+                data-worker-id="${sanitizeAttr(w.id)}" title="Prescribes 24h paid rest directive without reducing pay">
+                Schedule Paid Rest
+              </button>
+            ` : w.overtimePendingApproval ? `
+              <button class="btn-approve-ot px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded transition-all shadow-sm"
+                data-worker-id="${sanitizeAttr(w.id)}">
+                Approve OT
+              </button>
+            ` : `
+              <span class="text-[10px] text-slate-400 font-semibold px-2 py-1">In Balance</span>
+            `}
+          </div>
         </div>
-      </div>`;
+      </div>
+    `;
   }).join('');
 
-  // Wire Approve OT buttons
-  container.querySelectorAll('.approve-ot-btn').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
+  // Wire Schedule Paid Rest (supportive, non-punitive rebalancing)
+  container.querySelectorAll('.btn-paid-rest').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const wId = btn.dataset.workerId;
+      const allW = getWorkers();
+      const worker = allW.find(w => w.id === wId);
+      if (!worker) return;
+
+      // Supportive management: reset fatigue flag, cap overtime safely, log supportive rest
+      worker.fatigueStatus = 'ok';
+      worker.paidLeaveBalance = (worker.paidLeaveBalance || 0) + 1; // Awarded 1 paid rest day
+      saveWorker(worker);
+
+      // Create an automatic supervisory grievance resolution note for the worker
+      const allReps = getReports();
+      const existingRep = allReps.find(r => r.workerId === wId && (r.category?.includes('Fatigue') || r.category?.includes('Safety')));
+      if (existingRep) {
+        existingRep.stage = 3; // Action Taken
+        existingRep.supervisorNote = 'Supervisory Action: Scheduled 24h mandatory paid rest day with relief crew. Zero deduction applied.';
+        saveReport(existingRep);
+      }
+
+      showToast(`🛡️ Supportive Action: Paid rest directive scheduled for ${worker.name}.`, 'success');
+      const ind = getState().selectedIndustry;
+      renderSupervisorView(ind);
+    });
+  });
+
+  // Wire Approve Overtime
+  container.querySelectorAll('.btn-approve-ot').forEach(btn => {
+    btn.addEventListener('click', () => {
       const wId = btn.dataset.workerId;
       approveOvertime(wId);
     });
   });
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-/** approveOvertime — Mark worker's OT as approved in LS */
-function approveOvertime(workerId) {
-  const workers = getWorkers();
-  const worker  = workers.find(w => w.id === workerId);
-  if (!worker) return;
-  worker.overtimePendingApproval = false;
-  saveWorker(worker);
+/** 4. Skill Verification & Training Matrix */
+function renderSkillVerificationMatrix(workers) {
+  const panel = document.getElementById('skill-verification-panel');
+  if (!panel) return;
 
-  const state = getState();
-  renderSupervisorView(state.selectedIndustry);
-  showToast(`✅ Overtime approved for ${worker.name}`, 'success');
-}
-
-/** Render safety/grievance reports panel in supervisor view */
-function renderReportsPanel(reports) {
-  const container = document.getElementById('supervisor-reports');
-  if (!container) return;
-
-  const severityClasses = {
-    low:      'severity-low',
-    medium:   'severity-medium',
-    high:     'severity-high',
-    critical: 'severity-critical',
-  };
-  const statusLabels = {
-    open:         '🔴 Open',
-    under_review: '🟡 Review',
-    resolved:     '✅ Done',
-  };
-
-  // Sort: critical/high first, then by timestamp desc
-  const sorted = [...reports].sort((a, b) => {
-    const sOrder = { critical: 0, high: 1, medium: 2, low: 3 };
-    const sDiff  = (sOrder[a.severity] ?? 4) - (sOrder[b.severity] ?? 4);
-    if (sDiff !== 0) return sDiff;
-    return new Date(b.timestamp) - new Date(a.timestamp);
+  const pendingRequests = [];
+  workers.forEach(w => {
+    (w.skillBadges || []).forEach(b => {
+      if (b.status === 'pending' || b.status === 'inprogress') {
+        pendingRequests.push({ worker: w, badge: b });
+      }
+    });
   });
 
-  container.innerHTML = sorted.map(r => `
-    <div class="p-4 hover:bg-gray-50 transition-colors cursor-pointer" role="listitem">
-      <div class="flex items-start justify-between gap-2">
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 flex-wrap mb-0.5">
-            <span class="pay-pill ${severityClasses[r.severity] ?? ''} text-xs uppercase">${r.severity}</span>
-            <span class="text-xs text-gray-500 font-semibold">${statusLabels[r.status] ?? r.status}</span>
+  const countBadge = document.getElementById('pending-skill-count');
+  if (countBadge) countBadge.textContent = `${pendingRequests.length} Requests`;
+
+  if (pendingRequests.length === 0) {
+    panel.innerHTML = `
+      <div class="text-center py-4 text-slate-400 text-xs">
+        <p class="font-semibold text-slate-600">All workforce credentials verified.</p>
+        <p class="text-[11px] text-slate-400 mt-0.5">When workers complete training modules in Step 4, pending requests appear here.</p>
+      </div>
+    `;
+    return;
+  }
+
+  panel.innerHTML = pendingRequests.map(req => {
+    return `
+      <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <p class="font-bold text-xs text-slate-900">${sanitizeHTML(req.badge.name)}</p>
+            <p class="text-[11px] text-slate-500 font-medium">Worker: <strong>${sanitizeHTML(req.worker.name)}</strong> (${sanitizeHTML(req.worker.jobRole)})</p>
+            <p class="text-[10px] text-slate-400">Authority: ${sanitizeHTML(req.badge.issuer || req.worker.orgName)}</p>
           </div>
-          <p class="text-sm font-semibold text-gray-800 truncate">${sanitizeHTML(r.title)}</p>
-          <p class="text-xs text-gray-500 mt-0.5">
-            ${sanitizeHTML(r.workerName)} ·
-            ${new Date(r.timestamp).toLocaleDateString('en-IN', { day:'numeric', month:'short' })}
-          </p>
-          ${r.description ? `<p class="text-xs text-gray-600 mt-1 line-clamp-2">${sanitizeHTML(r.description)}</p>` : ''}
+          <span class="status-pill pill-amber text-[9px]">Pending Sign-Off</span>
         </div>
-        <div class="shrink-0">
-          ${r.status !== 'resolved'
-            ? `<button class="text-xs bg-green-100 hover:bg-green-200 text-green-700 font-bold px-2 py-1 rounded-full resolve-btn" data-report-id="${sanitizeAttr(r.id)}">Resolve</button>`
-            : ''
-          }
+
+        <div class="flex items-center gap-1.5 pt-1">
+          <button class="btn-verify-skill flex-1 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded transition-all shadow-sm"
+            data-worker-id="${sanitizeAttr(req.worker.id)}" data-badge-name="${sanitizeAttr(req.badge.name)}">
+            ✅ Approve &amp; Verify Skill
+          </button>
+          <button class="btn-assign-refresher px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs rounded transition-all"
+            data-worker-id="${sanitizeAttr(req.worker.id)}" data-badge-name="${sanitizeAttr(req.badge.name)}">
+            Refresher Course
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Wire Approve & Verify button
+  panel.querySelectorAll('.btn-verify-skill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const wId = btn.dataset.workerId;
+      const bName = btn.dataset.badgeName;
+      const allW = getWorkers();
+      const worker = allW.find(w => w.id === wId);
+      if (!worker) return;
+
+      const badge = (worker.skillBadges || []).find(b => b.name === bName);
+      if (badge) {
+        badge.status = 'verified';
+        badge.issued = new Date().toISOString().split('T')[0];
+        // Set expiry 2 years in future
+        const exp = new Date();
+        exp.setFullYear(exp.getFullYear() + 2);
+        badge.expiry = exp.toISOString().split('T')[0];
+      }
+      saveWorker(worker);
+
+      showToast(`🎓 Skill "${bName}" verified for ${worker.name}! Updated on Passport.`, 'success');
+      const ind = getState().selectedIndustry;
+      renderSupervisorView(ind);
+    });
+  });
+
+  // Wire Refresher Course button
+  panel.querySelectorAll('.btn-assign-refresher').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const bName = btn.dataset.badgeName;
+      showToast(`📚 Refresher course modules queued for "${bName}".`, 'default');
+    });
+  });
+}
+
+/** 5. On-Demand Analytics Charts (Lightweight SVG / CSS) */
+function wireAnalyticsDrawerToggle(workers, reports) {
+  const toggleBtn = document.getElementById('btn-toggle-analytics');
+  const drawer = document.getElementById('analytics-drawer');
+  const label = document.getElementById('analytics-toggle-label');
+  if (!toggleBtn || !drawer) return;
+
+  toggleBtn.onclick = () => {
+    isAnalyticsDrawerOpen = !isAnalyticsDrawerOpen;
+    if (isAnalyticsDrawerOpen) {
+      drawer.classList.remove('hidden');
+      if (label) label.textContent = 'Hide Analytics Charts';
+      renderWorkforceAnalyticsCharts(workers, reports);
+    } else {
+      drawer.classList.add('hidden');
+      if (label) label.textContent = 'Load Workforce Analytics Charts';
+    }
+  };
+}
+
+/** Render Lightweight SVG/CSS Analytics Charts inside drawer */
+function renderWorkforceAnalyticsCharts(workers, reports) {
+  const container = document.getElementById('analytics-charts-container');
+  if (!container) return;
+
+  // Aggregate reports by category
+  const categories = ['Safety Hazard', 'Wage / Overtime Dispute', 'Harassment / Unfair Treatment', 'Equipment / PPE Shortage', 'General Feedback'];
+  const catCounts = categories.map(cat => {
+    return {
+      cat,
+      count: reports.filter(r => (r.category || '').toLowerCase().includes(cat.toLowerCase().slice(0, 5))).length,
+    };
+  });
+  const maxCatCount = Math.max(...catCounts.map(c => c.count), 1);
+
+  // Overtime distribution
+  const otBuckets = [
+    { label: '0h (Normal)', count: workers.filter(w => (w.overtimeHours || 0) === 0).length },
+    { label: '1–5h (Safe OT)', count: workers.filter(w => (w.overtimeHours || 0) > 0 && (w.overtimeHours || 0) <= 5).length },
+    { label: '6–10h (High OT)', count: workers.filter(w => (w.overtimeHours || 0) > 5 && (w.overtimeHours || 0) <= 10).length },
+    { label: '>10h (Fatigue Alert)', count: workers.filter(w => (w.overtimeHours || 0) > 10).length },
+  ];
+  const maxOtCount = Math.max(...otBuckets.map(b => b.count), 1);
+
+  container.innerHTML = `
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Chart 1: Grievances & Hazards by Category -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <h4 class="font-bold text-xs text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="bar-chart-2" class="w-3.5 h-3.5 text-indigo-600"></i>
+            Grievances &amp; Hazards by Category
+          </h4>
+          <span class="text-[10px] text-slate-400 font-semibold">${reports.length} Total Incidents</span>
+        </div>
+
+        <div class="space-y-2 pt-1">
+          ${catCounts.map(c => {
+            const pct = Math.round((c.count / maxCatCount) * 100);
+            return `
+              <div>
+                <div class="flex items-center justify-between text-xs mb-1">
+                  <span class="font-semibold text-slate-700 truncate">${c.cat}</span>
+                  <span class="font-bold text-indigo-700">${c.count}</span>
+                </div>
+                <div class="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div class="h-full bg-indigo-600 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- Chart 2: Overtime & Fatigue Distribution -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <h4 class="font-bold text-xs text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="pie-chart" class="w-3.5 h-3.5 text-amber-500"></i>
+            Workforce Overtime &amp; Fatigue Tiers
+          </h4>
+          <span class="text-[10px] text-slate-400 font-semibold">${workers.length} Monitored</span>
+        </div>
+
+        <div class="space-y-2 pt-1">
+          ${otBuckets.map((b, idx) => {
+            const pct = Math.round((b.count / maxOtCount) * 100);
+            const colorClass = idx === 3 ? 'bg-red-500' : idx === 2 ? 'bg-amber-500' : 'bg-emerald-500';
+            return `
+              <div>
+                <div class="flex items-center justify-between text-xs mb-1">
+                  <span class="font-semibold text-slate-700">${b.label}</span>
+                  <span class="font-bold text-slate-900">${b.count} Workers</span>
+                </div>
+                <div class="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div class="h-full ${colorClass} rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                </div>
+              </div>
+            `;
+          }).join('')}
         </div>
       </div>
     </div>
-  `).join('');
+  `;
 
-  // Wire resolve buttons
-  container.querySelectorAll('.resolve-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const rId   = btn.dataset.reportId;
-      const reps  = getReports();
-      const rep   = reps.find(r => r.id === rId);
-      if (!rep) return;
-      rep.status     = 'resolved';
-      rep.resolvedAt = new Date().toISOString();
-      saveReport(rep);
-      const state = getState();
-      renderSupervisorView(state.selectedIndustry);
-      showToast('✅ Report marked as resolved', 'success');
-    });
-  });
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 /** Render fatigue alerts sidebar panel */

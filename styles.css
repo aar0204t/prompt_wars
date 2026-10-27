@@ -392,6 +392,41 @@ body.offline-mode .supervisor-card { opacity: 0.9; border-color: #fca5a5; }
   box-shadow: 0 0 0 3px #c7d2fe;
 }
 
+/* ─── Supervisor Filter Pills ────────────────────────────────── */
+.report-filter-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+.report-filter-pill:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+.report-filter-pill.active {
+  background: #4f46e5;
+  color: #ffffff;
+  border-color: #4338ca;
+}
+
+/* ─── Supportive Fatigue Directives ────────────────────────── */
+.fatigue-pill-healthy { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+.fatigue-pill-moderate { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+.fatigue-pill-danger { background: #fef2f2; color: #991b1b; border: 1.5px solid #fca5a5; animation: pulse 2.5s infinite; }
+
+/* ─── Analytics SVG Bar chart styling ──────────────────────── */
+.chart-bar-rect {
+  transition: height 0.5s ease-out, y 0.5s ease-out;
+}
+.chart-bar-rect:hover {
+  filter: brightness(1.15);
+}
+
 /* ─── Passport CV Printable Styles ─────────────────────────── */
 .passport-card-watermark {
   background-image: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.04) 0%, transparent 70%);
