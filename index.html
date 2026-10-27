@@ -580,6 +580,43 @@
     </div>
   </div>
 
+  <!-- ============================================================
+       MODAL: Portable Skill Passport (QR CV)
+  ============================================================ -->
+  <div id="passport-modal"
+    class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+    role="dialog" aria-modal="true" aria-labelledby="passport-modal-title">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col border border-slate-200 overflow-hidden print:max-w-none print:shadow-none print:border-none">
+      
+      <!-- Modal Header (hidden on print) -->
+      <div class="flex items-center justify-between px-6 py-3.5 bg-slate-900 text-white print:hidden">
+        <div class="flex items-center gap-2">
+          <i data-lucide="award" class="w-4 h-4 text-amber-400"></i>
+          <h2 id="passport-modal-title" class="font-bold text-sm tracking-wide">
+            Verified Portable Skill Passport (Universal Worker CV)
+          </h2>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btn-print-passport"
+            class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-md flex items-center gap-1.5 transition-all">
+            <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+            <span>Print / Save PDF</span>
+          </button>
+          <button id="close-passport-modal"
+            class="text-slate-400 hover:text-white transition-colors p-1 rounded"
+            aria-label="Close passport modal">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Printable Certificate Container -->
+      <div id="passport-modal-content" class="overflow-y-auto p-6 space-y-5 bg-white text-slate-800">
+        <!-- Dynamically rendered by app.js -->
+      </div>
+    </div>
+  </div>
+
   <!-- Toast container -->
   <div id="toast-container"
     class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 items-center pointer-events-none"

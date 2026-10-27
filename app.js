@@ -2378,78 +2378,398 @@ function submitWorkerReport(worker) {
   renderVoiceReportTab(worker);
 }
 
-/** renderSkillPassportTab — Skill Passport tab */
+/* ============================================================
+   SECTION 10-D — PORTABLE SKILL PASSPORT & DIGITAL CV (Step 4)
+   ============================================================ */
+
+/** Available training / skill modules per industry for self-logging */
+const AVAILABLE_SKILL_MODULES = {
+  construction: [
+    { name: 'High-Altitude Scaffolding Safety (Level 3)', issuer: 'National Skill Dev Corp (NSDC)' },
+    { name: 'Heavy Machinery & Crane Safety Protocol', issuer: 'Metro Infra Corp (MIC)' },
+    { name: 'Electrical Arc-Flash & Lockout/Tagout (LOTO)', issuer: 'Central Electricity Authority' },
+    { name: 'Confined Space Entry & Hazard Control', issuer: 'DGET Directorate' },
+    { name: 'First Aid & Emergency Trauma Response', issuer: 'Red Cross India' },
+  ],
+  hospital: [
+    { name: 'Bio-Medical Waste Handling (Level 2)', issuer: 'WHO Infection Control Guild' },
+    { name: 'ICU Sanitization & Pathogen Barrier Certified', issuer: 'City General Hospital' },
+    { name: 'Patient Ergonomics & Safe Gurney Transfer', issuer: 'Indian Academy of Pediatrics' },
+    { name: 'Chemical Spillage Decontamination Protocol', issuer: 'National Health Mission' },
+    { name: 'Basic Life Support (BLS) & CPR Advanced', issuer: 'IAP Emergency Care' },
+  ],
+};
+
+/**
+ * renderPassportModalContent — Generates the printable/shareable CV certificate
+ */
+function renderPassportModalContent(worker) {
+  const modalContent = document.getElementById('passport-modal-content');
+  if (!modalContent) return;
+
+  const verifiedBadges = (worker.skillBadges || []).filter(b => b.status === 'verified');
+  const expHours = (worker.totalVerifiedExperienceHours || (worker.hoursWorkedThisWeek * 28 + 640));
+  const safetyScore = worker.safetyRecordScore || '98%';
+  const passportId = worker.passportId || `FS-IN-${worker.id.replace('w-','10')}-2026`;
+  const otReliability = worker.overtimeReliability || '99.4%';
+
+  modalContent.innerHTML = `
+    <!-- Top Verification Header -->
+    <div class="border-b-2 border-slate-900 pb-4 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 bg-slate-900 text-white rounded-xl flex items-center justify-center text-2xl font-black shrink-0">
+          ⚖️
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-extrabold text-xl text-slate-900 tracking-tight">FairShift Skill Passport</h1>
+            <span class="bg-indigo-100 text-indigo-800 text-[10px] font-extrabold px-2 py-0.5 rounded">UN SDG 8</span>
+          </div>
+          <p class="text-xs text-slate-500 font-semibold tracking-wide">Decent Work &amp; Portable Credentials Authority</p>
+        </div>
+      </div>
+      
+      <!-- Simulated High-Density QR Verification Badge -->
+      <div class="flex flex-col items-end shrink-0">
+        <div class="simulated-qr" title="Scan to verify worker credentials online">
+          <div class="qr-dot"></div><div class="qr-dot"></div><div class="qr-dot"></div><div class="qr-dot"></div><div class="qr-dot"></div><div class="qr-dot"></div>
+          <div class="qr-dot"></div><div class="qr-dot off"></div><div class="qr-dot"></div><div class="qr-dot off"></div><div class="qr-dot"></div><div class="qr-dot"></div>
+          <div class="qr-dot"></div><div class="qr-dot"></div><div class="qr-dot off"></div><div class="qr-dot"></div><div class="qr-dot off"></div><div class="qr-dot"></div>
+          <div class="qr-dot"></div><div class="qr-dot off"></div><div class="qr-dot"></div><div class="qr-dot off"></div><div class="qr-dot"></div><div class="qr-dot"></div>
+          <div class="qr-dot"></div><div class="qr-dot"></div><div class="qr-dot off"></div><div class="qr-dot"></div><div class="qr-dot off"></div><div class="qr-dot"></div>
+          <div class="qr-dot"></div><div class="qr-dot"></div><div class="qr-dot"></div><div class="qr-dot"></div><div class="qr-dot"></div><div class="qr-dot"></div>
+        </div>
+        <span class="text-[9px] font-bold text-slate-500 mt-1 uppercase tracking-wider">Tamper-Proof QR</span>
+      </div>
+    </div>
+
+    <!-- Worker Profile Summary Bar -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+      <div>
+        <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Worker Name</p>
+        <p class="text-sm font-bold text-slate-900">${sanitizeHTML(worker.name)}</p>
+        <p class="text-[11px] text-slate-500 font-medium">${sanitizeHTML(worker.jobRole)}</p>
+      </div>
+      <div>
+        <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Passport ID</p>
+        <p class="text-xs font-mono font-bold text-indigo-700">${sanitizeHTML(passportId)}</p>
+        <p class="text-[10px] text-emerald-600 font-bold">● Active &amp; Verified</p>
+      </div>
+      <div>
+        <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Verified Experience</p>
+        <p class="text-sm font-bold text-slate-900">${expHours} Hours</p>
+        <p class="text-[10px] text-slate-500">Across 2 Organisations</p>
+      </div>
+      <div>
+        <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Safety Record</p>
+        <p class="text-sm font-extrabold text-emerald-600">${safetyScore}</p>
+        <p class="text-[10px] text-slate-500 font-medium">${otReliability} OT Reliability</p>
+      </div>
+    </div>
+
+    <!-- Verified Credentials Grid -->
+    <div>
+      <h3 class="text-xs uppercase font-extrabold text-slate-700 tracking-wider mb-2.5 flex items-center gap-1.5">
+        <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-600"></i>
+        Verified Competencies &amp; Industry Accreditations (${verifiedBadges.length})
+      </h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        ${verifiedBadges.map(b => `
+          <div class="p-2.5 bg-white border border-slate-200 rounded-lg shadow-sm">
+            <div class="flex items-start justify-between gap-2">
+              <span class="font-bold text-xs text-slate-900 leading-tight">${sanitizeHTML(b.name)}</span>
+              <span class="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded font-bold shrink-0">VERIFIED</span>
+            </div>
+            <div class="flex items-center justify-between text-[10px] text-slate-500 mt-2 pt-1 border-t border-slate-100">
+              <span>Authority: <strong class="text-slate-700">${sanitizeHTML(b.issuer)}</strong></span>
+              ${b.expiry ? `<span>Valid to: <strong>${new Date(b.expiry).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</strong></span>` : ''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <!-- Transparent Work & Payout History Statement -->
+    <div>
+      <h3 class="text-xs uppercase font-extrabold text-slate-700 tracking-wider mb-2 flex items-center gap-1.5">
+        <i data-lucide="history" class="w-3.5 h-3.5 text-indigo-600"></i>
+        Verified Cumulative Work History (SDG 8 Portable Metric)
+      </h3>
+      <table class="w-full text-left text-xs border border-slate-200 rounded-lg overflow-hidden">
+        <thead class="bg-slate-100 text-slate-600 font-bold text-[11px]">
+          <tr>
+            <th class="p-2">Employer / Project</th>
+            <th class="p-2">Role</th>
+            <th class="p-2">Logged Hours</th>
+            <th class="p-2 text-right">Audit Status</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 font-medium text-slate-700">
+          <tr>
+            <td class="p-2 font-semibold text-slate-900">${sanitizeHTML(worker.orgName)}</td>
+            <td class="p-2">${sanitizeHTML(worker.jobRole)}</td>
+            <td class="p-2 font-bold">${worker.hoursWorkedThisWeek * 12} hrs</td>
+            <td class="p-2 text-right text-emerald-600 font-bold">✓ Direct-Deposit Audited</td>
+          </tr>
+          <tr class="bg-slate-50/50">
+            <td class="p-2 font-semibold text-slate-900">${worker.industry === 'hospital' ? 'Apex Medical Trust' : 'National Highway Consortium'}</td>
+            <td class="p-2">${worker.industry === 'hospital' ? 'Associate Sanitation' : 'Junior Technician'}</td>
+            <td class="p-2 font-bold">480 hrs</td>
+            <td class="p-2 text-right text-emerald-600 font-bold">✓ Past Employer Confirmed</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Official Validation Footer -->
+    <div class="pt-4 border-t border-slate-200 flex items-center justify-between text-[10px] text-slate-400">
+      <div>
+        <p class="font-bold text-slate-600">FairShift Universal Worker Data Authority</p>
+        <p>Decent Work Certification under UN SDG 8.5 &amp; 8.8 — No Intermediary Lock-In</p>
+      </div>
+      <div class="text-right">
+        <p class="font-mono text-slate-500">Hash: 8f4a9b2c3d1e</p>
+        <p>Issued: ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+      </div>
+    </div>
+  `;
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+/**
+ * renderSkillPassportTab — Step 4 Full Implementation
+ */
 function renderSkillPassportTab(worker) {
   const panel = document.getElementById('tab-skill-passport');
   if (!panel) return;
 
-  const verified   = worker.skillBadges.filter(b => b.status === 'verified').length;
-  const inProgress = worker.skillBadges.filter(b => b.status === 'inprogress').length;
-  const pending    = worker.skillBadges.filter(b => b.status === 'pending').length;
+  const industry = worker.industry || 'construction';
+  const badges = worker.skillBadges || [];
+  const verifiedCount = badges.filter(b => b.status === 'verified').length;
+  const inprogressCount = badges.filter(b => b.status === 'inprogress').length;
+  const pendingCount = badges.filter(b => b.status === 'pending').length;
 
-  const badgeStatusIcon = { verified: '✅', inprogress: '🔄', pending: '⏳' };
-  const badgeClasses    = { verified: 'verified', inprogress: 'inprogress', pending: 'pending' };
+  const passportId = worker.passportId || `FS-IN-${worker.id.replace('w-','10')}-2026`;
+  const expHours = worker.totalVerifiedExperienceHours || (worker.hoursWorkedThisWeek * 28 + 640);
+  const safetyScore = worker.safetyRecordScore || '98%';
+
+  const availableModules = AVAILABLE_SKILL_MODULES[industry] || AVAILABLE_SKILL_MODULES.construction;
 
   panel.innerHTML = `
-    <!-- Passport Summary -->
-    <div class="shift-card mb-4">
-      <div class="flex items-center gap-4 mb-4">
-        <div class="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center text-3xl">
-          🎓
-        </div>
-        <div>
-          <h3 class="font-extrabold text-gray-900 text-lg">${sanitizeHTML(worker.name)}</h3>
-          <p class="text-gray-500 text-sm">${sanitizeHTML(worker.jobRole)}</p>
-          <p class="text-blue-600 text-xs font-semibold">ID: ${sanitizeHTML(worker.employeeId)}</p>
-        </div>
+    <!-- 1. Digital Worker Identity & Experience Card -->
+    <div class="enterprise-card p-4 bg-gradient-to-br from-slate-900 to-indigo-950 text-white shadow-md relative overflow-hidden">
+      <!-- Background subtle stamp -->
+      <div class="absolute -right-6 -bottom-6 text-slate-800/40 text-8xl font-black select-none pointer-events-none">
+        SDG8
       </div>
-      <div class="grid grid-cols-3 gap-3 text-center">
-        <div class="bg-green-50 rounded-xl p-2">
-          <div class="text-2xl font-extrabold text-green-700">${verified}</div>
-          <div class="text-xs text-green-600 font-semibold">Verified</div>
+
+      <div class="relative z-10 space-y-3.5">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-2xl shrink-0">
+              ${worker.avatar}
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="font-extrabold text-base text-white">${sanitizeHTML(worker.name)}</h3>
+                <span class="bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 text-[10px] font-bold px-2 py-0.5 rounded">
+                  PORTABLE
+                </span>
+              </div>
+              <p class="text-xs text-slate-300 font-medium">${sanitizeHTML(worker.jobRole)}</p>
+              <p class="text-[11px] text-slate-400 font-mono mt-0.5">${sanitizeHTML(passportId)}</p>
+            </div>
+          </div>
+          <span class="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2 py-0.5 rounded font-bold shrink-0">
+            ● Active
+          </span>
         </div>
-        <div class="bg-yellow-50 rounded-xl p-2">
-          <div class="text-2xl font-extrabold text-yellow-600">${inProgress}</div>
-          <div class="text-xs text-yellow-600 font-semibold">In Progress</div>
+
+        <!-- 3 Core Portable Metrics -->
+        <div class="grid grid-cols-3 gap-2 pt-2 border-t border-white/10 text-center">
+          <div class="bg-white/5 rounded-lg p-2 border border-white/5">
+            <p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Experience</p>
+            <p class="text-base font-extrabold text-white mt-0.5">${expHours}h</p>
+            <p class="text-[9px] text-slate-400">Total Verified</p>
+          </div>
+          <div class="bg-white/5 rounded-lg p-2 border border-white/5">
+            <p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Safety Score</p>
+            <p class="text-base font-extrabold text-emerald-400 mt-0.5">${safetyScore}</p>
+            <p class="text-[9px] text-slate-400">0 Violations</p>
+          </div>
+          <div class="bg-white/5 rounded-lg p-2 border border-white/5">
+            <p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Credentials</p>
+            <p class="text-base font-extrabold text-amber-400 mt-0.5">${verifiedCount}</p>
+            <p class="text-[9px] text-slate-400">Verified Badges</p>
+          </div>
         </div>
-        <div class="bg-gray-50 rounded-xl p-2">
-          <div class="text-2xl font-extrabold text-gray-500">${pending}</div>
-          <div class="text-xs text-gray-400 font-semibold">Pending</div>
-        </div>
+
+        <!-- 4. Printable CV / Shareable Modal Trigger -->
+        <button id="btn-open-passport-cv"
+          class="w-full py-2.5 bg-white text-slate-900 hover:bg-slate-100 font-extrabold text-xs rounded-lg flex items-center justify-center gap-2 shadow transition-all">
+          <i data-lucide="file-badge" class="w-4 h-4 text-indigo-600"></i>
+          <span>View / Print Portable Skill Passport (QR CV)</span>
+        </button>
       </div>
     </div>
 
-    <!-- Skill Badges List -->
-    <div class="shift-card">
-      <h3 class="font-bold text-gray-900 mb-3 flex items-center gap-2">
-        <span class="text-xl">🏅</span> Skill Badges &amp; Certifications
-      </h3>
-      <div class="space-y-3">
-        ${worker.skillBadges.map(badge => {
-          const isExpiringSoon = badge.expiry
-            ? (new Date(badge.expiry) - new Date()) < 60 * 24 * 60 * 60 * 1000 // 60 days
+    <!-- 2. Verified Certifications & Badges Grid -->
+    <div class="enterprise-card p-4 space-y-3">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+        <div>
+          <h4 class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+            <i data-lucide="award" class="w-4 h-4 text-amber-500"></i>
+            Earned Accreditations &amp; Safety Badges
+          </h4>
+          <p class="text-slate-500 text-xs mt-0.5">Verified on-site by supervisors — portable across all employers</p>
+        </div>
+        <span class="status-pill pill-indigo text-[10px]">${badges.length} Total</span>
+      </div>
+
+      <div class="space-y-2.5">
+        ${badges.map(b => {
+          const isVerified = b.status === 'verified';
+          const isPending = b.status === 'pending';
+          const isInProgress = b.status === 'inprogress';
+
+          const isExpiringSoon = b.expiry
+            ? (new Date(b.expiry) - new Date()) < 60 * 24 * 60 * 60 * 1000 // 60 days
             : false;
+
           return `
-          <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
-            <span class="text-2xl mt-0.5">${badgeStatusIcon[badge.status] ?? '📄'}</span>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="skill-badge ${badgeClasses[badge.status] ?? 'pending'}">
-                  ${sanitizeHTML(badge.name)}
-                </span>
-                ${isExpiringSoon ? `<span class="text-xs text-red-600 font-bold">⚠️ Expiring soon</span>` : ''}
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 hover:border-slate-300 transition-all space-y-1.5">
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-bold text-xs text-slate-900">${sanitizeHTML(b.name)}</span>
+                  ${isVerified ? `
+                    <span class="status-pill pill-green text-[10px]">Verified ✓</span>
+                  ` : isInProgress ? `
+                    <span class="status-pill pill-amber text-[10px]">In Progress 🔄</span>
+                  ` : `
+                    <span class="status-pill pill-slate text-[10px]">Pending Verification ⏳</span>
+                  `}
+                  ${isExpiringSoon ? `
+                    <span class="status-pill pill-amber text-[10px] font-bold">Renewal Due Soon ⚠️</span>
+                  ` : ''}
+                </div>
               </div>
-              <div class="flex items-center gap-3 mt-1 text-xs text-gray-500 flex-wrap">
-                <span>Issuer: <strong>${sanitizeHTML(badge.issuer)}</strong></span>
-                ${badge.issued ? `<span>Issued: ${new Date(badge.issued).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</span>` : '<span class="text-yellow-600">Not yet issued</span>'}
-                ${badge.expiry ? `<span>Expires: ${new Date(badge.expiry).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</span>` : ''}
+
+              <div class="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200/60 flex-wrap gap-1">
+                <span>Verifying Authority: <strong class="text-slate-700">${sanitizeHTML(b.issuer || worker.orgName)}</strong></span>
+                <div class="flex items-center gap-2">
+                  ${b.issued ? `<span>Issued: ${new Date(b.issued).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</span>` : ''}
+                  ${b.expiry ? `<span>Expires: ${new Date(b.expiry).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</span>` : ''}
+                </div>
               </div>
             </div>
-          </div>`;
+          `;
         }).join('')}
       </div>
     </div>
+
+    <!-- 3. Request Skill Verification / Log Training -->
+    <div class="enterprise-card p-4 space-y-3">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+        <div>
+          <h4 class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+            <i data-lucide="plus-circle" class="w-4 h-4 text-indigo-600"></i>
+            Log Training / Request Skill Verification
+          </h4>
+          <p class="text-slate-500 text-xs mt-0.5">Submit completed on-site training to site supervisor for certification</p>
+        </div>
+      </div>
+
+      <div class="space-y-2.5 text-xs">
+        <div>
+          <label for="module-select" class="font-bold text-slate-700 block mb-1">Select Completed Training Module:</label>
+          <select id="module-select" class="w-full p-2 bg-white border border-slate-300 rounded-lg text-slate-800 font-semibold focus:ring-2 focus:ring-indigo-500">
+            ${availableModules.map(m => `
+              <option value="${sanitizeAttr(m.name)}" data-issuer="${sanitizeAttr(m.issuer)}">
+                ${m.name} (${m.issuer})
+              </option>
+            `).join('')}
+          </select>
+        </div>
+
+        <div>
+          <label for="module-training-date" class="font-bold text-slate-700 block mb-1">Date of Completion:</label>
+          <input type="date" id="module-training-date" value="${new Date().toISOString().split('T')[0]}"
+            class="w-full p-2 bg-white border border-slate-300 rounded-lg text-slate-800 font-medium focus:ring-2 focus:ring-indigo-500" />
+        </div>
+
+        <button id="btn-request-verification"
+          class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow flex items-center justify-center gap-2 transition-all">
+          <i data-lucide="shield-check" class="w-4 h-4"></i>
+          <span>Request Supervisor Verification</span>
+        </button>
+      </div>
+    </div>
   `;
+
+  // ── Event Handlers ──────────────────────────────────────────────────
+
+  // 1. Open Portable Skill Passport (QR CV) Modal
+  document.getElementById('btn-open-passport-cv')?.addEventListener('click', () => {
+    const modal = document.getElementById('passport-modal');
+    if (!modal) return;
+    renderPassportModalContent(worker);
+    modal.classList.remove('hidden');
+  });
+
+  // 2. Request Supervisor Verification Button
+  document.getElementById('btn-request-verification')?.addEventListener('click', () => {
+    const select = document.getElementById('module-select');
+    if (!select) return;
+
+    const moduleName = select.value;
+    const selectedOpt = select.options[select.selectedIndex];
+    const issuer = selectedOpt ? selectedOpt.dataset.issuer : worker.orgName;
+
+    // Check if worker already has this module
+    const currentBadges = worker.skillBadges || [];
+    const alreadyExists = currentBadges.some(b => b.name === moduleName);
+
+    if (alreadyExists) {
+      showToast('⚠️ This badge is already on your passport or pending verification', 'warning');
+      return;
+    }
+
+    const newBadge = {
+      name: moduleName,
+      issuer: issuer,
+      status: 'pending',
+      issued: new Date().toISOString().split('T')[0],
+      expiry: null,
+    };
+
+    currentBadges.push(newBadge);
+    worker.skillBadges = currentBadges;
+    saveWorker(worker);
+
+    showToast(`✅ Verification request submitted for "${moduleName}"!`, 'success');
+    renderSkillPassportTab(worker);
+  });
+
+  // Re-run Lucide icons
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+/** Wire up global passport modal close & print events once */
+function initPassportModal() {
+  document.getElementById('close-passport-modal')?.addEventListener('click', () => {
+    document.getElementById('passport-modal')?.classList.add('hidden');
+  });
+
+  document.getElementById('passport-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'passport-modal') {
+      document.getElementById('passport-modal')?.classList.add('hidden');
+    }
+  });
+
+  document.getElementById('btn-print-passport')?.addEventListener('click', () => {
+    window.print();
+  });
 }
 
 /** Wire up worker bottom navigation tab switching */
@@ -2822,7 +3142,10 @@ function init() {
   // 5. Wire login view
   initLoginView();
 
-  // 6. Hide Switch/Logout button until user enters a live view
+  // 6. Wire passport modal events (close, print)
+  initPassportModal();
+
+  // 7. Hide Switch/Logout button until user enters a live view
   hideSwitchRoleButton();
 
   // 7. Restore session (if user had already logged in before refresh)

@@ -392,6 +392,54 @@ body.offline-mode .supervisor-card { opacity: 0.9; border-color: #fca5a5; }
   box-shadow: 0 0 0 3px #c7d2fe;
 }
 
+/* ─── Passport CV Printable Styles ─────────────────────────── */
+.passport-card-watermark {
+  background-image: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.04) 0%, transparent 70%);
+}
+
+.simulated-qr {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2px;
+  width: 58px;
+  height: 58px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1.5px solid #0f172a;
+  border-radius: 6px;
+}
+
+.qr-dot {
+  background: #0f172a;
+  border-radius: 1px;
+}
+
+.qr-dot.off {
+  background: #f1f5f9;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #passport-modal,
+  #passport-modal * {
+    visibility: visible;
+  }
+  #passport-modal {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: transparent !important;
+  }
+  #passport-modal-content {
+    padding: 1cm !important;
+  }
+}
+
 /* ─── Print ──────────────────────────────────────────────────── */
 @media print {
   #top-utility-bar, #worker-bottom-nav { display: none !important; }
